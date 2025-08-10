@@ -6,6 +6,19 @@ const projectCards = document.querySelectorAll('.project-card');
 const contactForm = document.getElementById('contactForm');
 const navLinks = document.querySelectorAll('.nav-menu a');
 
+// EmailJS Configuration
+// You'll need to replace these with your actual EmailJS credentials
+const EMAILJS_CONFIG = {
+    serviceId: 'service_vy8shqn', // Replace with your EmailJS service ID
+    templateId: 'template_eod6ksh', // Replace with your EmailJS template ID
+    userId: 'E-nygUs6JZFfbG5NR' // Replace with your EmailJS user ID
+};
+
+// Initialize EmailJS
+(function() {
+    emailjs.init(EMAILJS_CONFIG.userId);
+})();
+
 // Text scramble effect for name
 function randomChar() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890@#$%&*';
@@ -108,31 +121,61 @@ function initProjectEffects() {
     });
 }
 
-// Contact form handling
+// Contact form handling with EmailJS
 function initContactForm() {
     if (contactForm) {
-        contactForm.addEventListener('submit', (e) => {
+        contactForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const formData = new FormData(contactForm);
             const name = formData.get('name');
             const email = formData.get('email');
+            const subject = formData.get('subject');
             const message = formData.get('message');
             
-            // Simulate form submission
+            // Get button elements
             const submitBtn = contactForm.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
+            const btnText = submitBtn.querySelector('.btn-text');
+            const btnLoading = submitBtn.querySelector('.btn-loading');
             
-            submitBtn.textContent = 'Sending...';
+            // Show loading state
+            btnText.style.display = 'none';
+            btnLoading.style.display = 'inline-block';
             submitBtn.disabled = true;
             
-            setTimeout(() => {
-                // Show success message
-                showNotification('Message sent successfully! 🚀', 'success');
-                contactForm.reset();
-                submitBtn.textContent = originalText;
+            try {
+                // Prepare template parameters
+                const templateParams = {
+                    from_name: name,
+                    from_email: email,
+                    subject: subject,
+                    message: message,
+                    to_email: 'satyam.t2907@gmail.com' // Your email address
+                };
+                
+                // Send email using EmailJS
+                const response = await emailjs.send(
+                    EMAILJS_CONFIG.serviceId,
+                    EMAILJS_CONFIG.templateId,
+                    templateParams
+                );
+                
+                if (response.status === 200) {
+                    showNotification('Message sent successfully! 🚀', 'success');
+                    contactForm.reset();
+                } else {
+                    throw new Error('Failed to send email');
+                }
+                
+            } catch (error) {
+                console.error('EmailJS Error:', error);
+                showNotification('Failed to send message. Please try again or contact me directly.', 'error');
+            } finally {
+                // Reset button state
+                btnText.style.display = 'inline-block';
+                btnLoading.style.display = 'none';
                 submitBtn.disabled = false;
-            }, 2000);
+            }
         });
     }
 }
@@ -144,21 +187,35 @@ function showNotification(message, type = 'info') {
     notification.textContent = message;
     
     // Style the notification
+    const bgColor = type === 'success' ? 'rgba(0, 255, 0, 0.9)' : 
+                   type === 'error' ? 'rgba(255, 0, 0, 0.9)' : 
+                   'rgba(255, 0, 255, 0.9)';
+    
+    const borderColor = type === 'success' ? '#00ff00' : 
+                       type === 'error' ? '#ff0000' : 
+                       '#ff00ff';
+    
+    const shadowColor = type === 'success' ? 'rgba(0, 255, 0, 0.5)' : 
+                       type === 'error' ? 'rgba(255, 0, 0, 0.5)' : 
+                       'rgba(255, 0, 255, 0.5)';
+    
     notification.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: ${type === 'success' ? 'rgba(0, 255, 0, 0.9)' : 'rgba(255, 0, 255, 0.9)'};
+        background: ${bgColor};
         color: white;
         padding: 1rem 2rem;
         border-radius: 10px;
-        border: 1px solid ${type === 'success' ? '#00ff00' : '#ff00ff'};
-        box-shadow: 0 0 20px ${type === 'success' ? 'rgba(0, 255, 0, 0.5)' : 'rgba(255, 0, 255, 0.5)'};
+        border: 1px solid ${borderColor};
+        box-shadow: 0 0 20px ${shadowColor};
         z-index: 10000;
         transform: translateX(100%);
         transition: transform 0.3s ease;
         font-family: 'Orbitron', monospace;
         font-weight: bold;
+        max-width: 400px;
+        word-wrap: break-word;
     `;
     
     document.body.appendChild(notification);
@@ -168,13 +225,15 @@ function showNotification(message, type = 'info') {
         notification.style.transform = 'translateX(0)';
     }, 100);
     
-    // Remove after 3 seconds
+    // Remove after 5 seconds
     setTimeout(() => {
         notification.style.transform = 'translateX(100%)';
         setTimeout(() => {
-            document.body.removeChild(notification);
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
         }, 300);
-    }, 3000);
+    }, 5000);
 }
 
 // Intersection Observer for animations
@@ -321,11 +380,32 @@ style.textContent = `
     .notification {
         backdrop-filter: blur(10px);
     }
+    
+    .btn-loading {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .btn-loading i {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 `;
 document.head.appendChild(style);
 
 // Initialize everything when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // Check if EmailJS is properly configured
+    if (EMAILJS_CONFIG.serviceId === 'YOUR_SERVICE_ID') {
+        console.warn('⚠️ EmailJS not configured! Please update the EMAILJS_CONFIG object with your credentials.');
+        showNotification('Contact form not configured. Please set up EmailJS credentials.', 'error');
+    }
+    
     // Initial animations
     setTimeout(() => {
         scrambleText(nameElement);
